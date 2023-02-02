@@ -81,15 +81,18 @@ def increase_brightness(img, value=30):
     return img
 
 
-def decrease_brightness(img, value=30):
+def decrease_saturation(img, value=30):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
     lim = value
-    v[v < lim] = 0
-    v[v >= lim] -= value
+    s[s < lim] = 0
+    s[s >= lim] -= value
     final_hsv = cv2.merge((h, s, v))
     img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
     return img
+
+
+# def decrease_saturation(img, value=)
 
 
 if __name__ == "__main__":
@@ -104,9 +107,9 @@ if __name__ == "__main__":
 
     # Manually sample colors (pick colors from pixels around it)
     pick_colors(im, n)
-    print(picked_rgb)
+    # print(picked_rgb)
     picked_hsv = [rgb_to_hsv(x) for x in picked_rgb]
-    print(picked_hsv)
+    # print(picked_hsv)
     hs = [x[0] for x in picked_hsv]
     low_h = min(hs) - 1 if min(hs) >= 1 else min(hs) + 178
     high_h = max(hs) + 1 if max(hs) < 179 else max(hs) - 179
@@ -119,7 +122,6 @@ if __name__ == "__main__":
     # convert the input image to hsv
     hsv_im = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     # preview(hsv_im, desc="HSV")
-    gray_im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
     # hsv hue, saturation and brightness
     # hue int [0,179]; color spectrum think angle
@@ -129,23 +131,32 @@ if __name__ == "__main__":
     # hvals = np.linspace(0,179,20)
     # for i in range(len(hvals)-1):
     mask = cv2.inRange(hsv_im, np.array([low_h, low_s, 20]), np.array([high_h, high_s, 255]))
-    preview(mask, desc="mask")
-    # kernel = np.ones((20, 20), np.uint8)
-    kernel_size = 15
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    preview(mask, desc="mask")
+    preview(mask, desc="mask init")
+    kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))  # open
+    kernel2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))  # close
+    kernel3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))  # dilate
+    # Open: erosion then dilation - to remove tiny spots else where
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel1)
+    preview(mask, desc="mask open")
+    # Close: dilation then erosion - to remove tiny spots inside the selected region
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel2)
+    preview(mask, desc="mask close")
+    mask = cv2.dilate(mask, kernel3, iterations=1)
+    preview(mask, desc="mask final")
     # create an inverse of the mask
     mask_inv = cv2.bitwise_not(mask)
     # Filter only the selected color from the original image
+    # res = increase_saturation(im, value=50)
     res = cv2.bitwise_and(im, im, mask=mask)
-    # increase the brightness of selected areas
-    res = increase_brightness(res)
-    # Filter the regions containing colours other than red from the grayscale image(background)
-    background = cv2.bitwise_and(gray_im, gray_im, mask=mask_inv)
+    # preview(res)
+    background = increase_brightness(im, value=75)
+    background = decrease_saturation(background, value=50)
+    gray_bg = cv2.cvtColor(background, cv2.COLOR_BGR2GRAY)
+    background = cv2.bitwise_and(gray_bg, gray_bg, mask=mask_inv)
+    # preview(background)
     # convert the one channelled grayscale background to a three channelled image
     background = np.stack((background,)*3, axis=-1)
-    background = decrease_brightness(background, value=50)
+    # super impose white by addWeighted()
     # add the foreground and the background
     out = cv2.add(res, background)
     preview(out)
