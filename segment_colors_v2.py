@@ -32,6 +32,7 @@ def mouse_points(event, x, y, flags, params):
         print(counter)
         print(y, x)
         print(np.flip(im[y, x]))  # reversed(BGR) = RGB
+        print(rgb_to_hsv(np.flip(im[y, x])))
         clicked_coords_mat[counter] = y, x
         cur_cols = []
         for i in range(y-2, y+3):
