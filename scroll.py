@@ -9,7 +9,6 @@ def nothing(x):
 
 # Load image
 image = cv2.imread('images/test.jpg')
-preview(image)
 
 # Create a window
 cv2.namedWindow('image')
@@ -65,4 +64,4 @@ while 1:
     if cv2.waitKey(10) & 0xFF == ord('q'):
         break
 
-cv2.destroyAllWindows()
+# cv2.destroyAllWindows()

@@ -100,7 +100,7 @@ if __name__ == "__main__":
     # preview(im, desc="Original")
     # blur = cv2.blur(im, (7,7))
 
-    n = 7
+    n = 1
     clicked_coords_mat = np.zeros((n, 2), int)
     picked_rgb = np.zeros((n, 3), int)
     counter = 0
@@ -111,13 +111,17 @@ if __name__ == "__main__":
     picked_hsv = [rgb_to_hsv(x) for x in picked_rgb]
     # print(picked_hsv)
     hs = [x[0] for x in picked_hsv]
-    low_h = min(hs) - 1 if min(hs) >= 1 else min(hs) + 178
-    high_h = max(hs) + 1 if max(hs) < 179 else max(hs) - 179
+    low_h = min(hs) - 3 if min(hs) >= 3 else 0
+    high_h = max(hs) + 3 if max(hs) < 179 else max(hs) - 179
     ss = [x[1] for x in picked_hsv]
-    low_s = min(ss) - 5 if min(ss) >= 5 else 0
-    high_s = max(ss) + 5 if max(ss) <= 250 else 255
+    low_s = min(ss) - 10 if min(ss) >= 10 else 0
+    high_s = max(ss) + 10 if max(ss) <= 245 else 255
+    # vs = [x[1] for x in picked_hsv]
+    # low_v = min(vs) - 10 if min(vs) >= 10 else 0
+    # high_v = max(vs) + 10 if max(vs) <= 245 else 255
     print(low_h, high_h)
     print(low_s, high_s)
+    # print(low_v, high_v)
 
     # convert the input image to hsv
     hsv_im = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -130,19 +134,21 @@ if __name__ == "__main__":
     # define range of blue color in HSV
     # hvals = np.linspace(0,179,20)
     # for i in range(len(hvals)-1):
-    mask = cv2.inRange(hsv_im, np.array([low_h, low_s, 20]), np.array([high_h, high_s, 255]))
-    preview(mask, desc="mask init")
+    mask = cv2.inRange(hsv_im, np.array([low_h, 50, 0]), np.array([high_h, high_s, 255]))
+    # mask = cv2.inRange(hsv_im, np.array([0, 50, 20]), np.array([5, 255, 255]))
+    # mask = cv2.inRange(hsv_im, np.array([60, 35, 140]), np.array([180, 255, 255]))
+    #preview(mask, desc="mask init")
     kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))  # open
     kernel2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))  # close
     kernel3 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))  # dilate
     # Open: erosion then dilation - to remove tiny spots else where
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel1)
-    preview(mask, desc="mask open")
+    #preview(mask, desc="mask open")
     # Close: dilation then erosion - to remove tiny spots inside the selected region
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel2)
-    preview(mask, desc="mask close")
+    #preview(mask, desc="mask close")
     mask = cv2.dilate(mask, kernel3, iterations=1)
-    preview(mask, desc="mask final")
+    #preview(mask, desc="mask final")
     # create an inverse of the mask
     mask_inv = cv2.bitwise_not(mask)
     # Filter only the selected color from the original image
@@ -160,3 +166,12 @@ if __name__ == "__main__":
     # add the foreground and the background
     out = cv2.add(res, background)
     preview(out)
+
+
+
+"""
+The reason for using the 0-179 range instead of the more common 0-360 range is that 
+OpenCV represents the hue values as 8-bit integers, which can only hold values from 
+0 to 255. By using the 0-179 range, OpenCV can represent the full range of hues using 
+just one byte per pixel, which makes it more efficient for image processing operations.
+"""
