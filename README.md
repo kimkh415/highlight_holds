@@ -11,5 +11,5 @@ Next, the function applies morphological operations to the mask to remove tiny s
 The mask_kernel_sizes parameter is optional and specifies the sizes of the elliptical kernels used in the morphological operations. If mask_kernel_sizes is not provided, the function uses default values of [2, 15, 30] for the kernel sizes.
 
 
-
-
+##### **scroll.py**
+Tool to visualize the mask parametrized by h, s and v
