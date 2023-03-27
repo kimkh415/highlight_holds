@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from segment_colors import preview
 
 
 def nothing(x):
