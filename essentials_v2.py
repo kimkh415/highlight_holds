@@ -2,6 +2,15 @@ import cv2
 import numpy as np
 
 
+def preview(image, desc="test"):
+    while 1:
+        cv2.imshow(desc, image)
+        if cv2.waitKey(10) & 0xFF == 27:
+            break
+
+    cv2.destroyAllWindows()
+
+
 def rgb_to_hsv(rgb_arr):
     r = rgb_arr[0]
     g = rgb_arr[1]
@@ -37,15 +46,6 @@ def get_rgb(img, pos_x, pos_y):
             cur_cols.append(np.flip(img[i, j]))
     cur_cols = np.vstack(cur_cols)
     return np.median(cur_cols, axis=0)
-
-
-# def preview(image, desc="test"):
-#     while 1:
-#         cv2.imshow(desc, image)
-#         if cv2.waitKey(10) & 0xFF == 27:
-#             break
-#
-#     cv2.destroyAllWindows()
 
 
 def increase_brightness(img, value=30):
@@ -94,7 +94,7 @@ def decrease_saturation(img, value=30):
 
 # This function takes an image, x, and y coordinates as input and returns a binary mask that highlights a region
 # around the selected color.
-def create_mask(im, x, y, mask_kernel_sizes=None):
+def create_mask(im, x, y, mask_kernel_sizes=None, n_color=16):
     # inputs
     # im = cv2.imread('images/test.jpg')
     # x = 637
@@ -104,8 +104,8 @@ def create_mask(im, x, y, mask_kernel_sizes=None):
         mask_kernel_sizes = [2, 15, 30]
 
     # Create a lookup table for the hue values
-    num_colors = 16  # Hue bins
-    hue_scale = np.linspace(0, 255, num_colors + 1).astype(np.uint8)  # see bottom
+    num_colors = n_color  # Hue bins
+    hue_scale = np.linspace(0, 255, num_colors + 1).astype(np.uint8)  # see botto
     hue_lut = np.zeros((1, 256), dtype=np.uint8)
     i = 0
     for i in range(num_colors):
@@ -130,8 +130,8 @@ def create_mask(im, x, y, mask_kernel_sizes=None):
     hue_channel = hsv_im[:, :, 0]
     hue_discretized = cv2.LUT(hue_channel, hue_lut)
     hsv_im[:, :, 0] = hue_discretized
-    # bgr = cv2.cvtColor(hsv_im, cv2.COLOR_HSV2BGR)
-    # preview(bgr, desc="BGR discrete colors")
+    bgr = cv2.cvtColor(hsv_im, cv2.COLOR_HSV2BGR)
+    preview(bgr, desc="BGR discrete colors")
 
     # Create mask
     low_h = selected_color - 1 if selected_color > 0 else 0
@@ -171,7 +171,7 @@ def create_mask(im, x, y, mask_kernel_sizes=None):
 
     # Filter only the selected color from the original image
     res = cv2.bitwise_and(im, im, mask=mask)
-    # preview(res)
+    preview(res)
 
     background = decrease_brightness(im, value=50)
     background = increase_saturation(background, value=50)
@@ -184,9 +184,17 @@ def create_mask(im, x, y, mask_kernel_sizes=None):
 
     # add the foreground and the background
     out = cv2.add(res, background)
-    # preview(out)
+    preview(out)
 
     return mask, out
+
+
+if __name__ == '__main__':
+    im = cv2.imread('images/test.jpg')
+    x = 637
+    y = 302
+    create_mask(im, x, y)
+
 
 
 """
