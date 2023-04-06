@@ -99,7 +99,9 @@ def create_mask(im, x, y, mask_kernel_sizes=None, n_color=16):
     # im = cv2.imread('images/test.jpg')
     # x = 637
     # y = 302
-
+ 
+    print('bgr')
+    print(im[x,y,:])
     if mask_kernel_sizes is None:
         mask_kernel_sizes = [2, 15, 30]
 
@@ -114,7 +116,11 @@ def create_mask(im, x, y, mask_kernel_sizes=None, n_color=16):
 
     # get color from a given coordinate
     selected_rgb = get_rgb(im, x, y)
+    print('rgb')
+    print(selected_rgb)
     selected_hsv = rgb_to_hsv(selected_rgb)
+    print('hsv')
+    print(selected_hsv)
     selected_h = selected_hsv[0]
     print(f"selected h: {selected_h}")
     selected_color = hue_lut[0, int(selected_h + 0.5)]
@@ -125,13 +131,24 @@ def create_mask(im, x, y, mask_kernel_sizes=None, n_color=16):
     # convert the input image to hsv
     hsv_im = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     # preview(hsv_im, desc="HSV")
+    cv2.imwrite("test_hsv.jpg", hsv_im)
 
     # Apply the hue LUT to the hue channel of the image
     hue_channel = hsv_im[:, :, 0]
+    print(hue_channel)
+    cv2.imwrite("hue_channel.jpg", hue_channel)
     hue_discretized = cv2.LUT(hue_channel, hue_lut)
+    print(hue_discretized)
+    print(hue_discretized[0,0])
+    print(hue_discretized[0,hue_discretized.shape[1]-1])
+    print(hue_discretized[hue_discretized.shape[0]-1,0])
+    cv2.imwrite("hue_discretized.jpg", hue_discretized)
     hsv_im[:, :, 0] = hue_discretized
+    cv2.imwrite("test_hsv_discrete.jpg", hsv_im)
     bgr = cv2.cvtColor(hsv_im, cv2.COLOR_HSV2BGR)
-    preview(bgr, desc="BGR discrete colors")
+    # preview(bgr, desc="BGR discrete colors")
+    print(hsv_im[x, y, :])
+    cv2.imwrite("test_discrete.jpg", bgr)
 
     # Create mask
     low_h = selected_color - 1 if selected_color > 0 else 0
@@ -171,7 +188,7 @@ def create_mask(im, x, y, mask_kernel_sizes=None, n_color=16):
 
     # Filter only the selected color from the original image
     res = cv2.bitwise_and(im, im, mask=mask)
-    preview(res)
+    # preview(res)
 
     background = decrease_brightness(im, value=50)
     background = increase_saturation(background, value=50)
@@ -184,17 +201,18 @@ def create_mask(im, x, y, mask_kernel_sizes=None, n_color=16):
 
     # add the foreground and the background
     out = cv2.add(res, background)
-    preview(out)
+    # preview(out)
 
     return mask, out
 
 
 if __name__ == '__main__':
     im = cv2.imread('images/test.jpg')
-    x = 637
-    y = 302
-    create_mask(im, x, y)
-
+    y = 292
+    x = 631
+    print(f"x={x}, y={y}")
+    _, out = create_mask(im, x, y)
+    cv2.imwrite("test_res_637_302.jpg", out)
 
 
 """
