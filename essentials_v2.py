@@ -94,7 +94,7 @@ def decrease_saturation(img, value=30):
 
 # This function takes an image, x, and y coordinates as input and returns a binary mask that highlights a region
 # around the selected color.
-def create_mask(im, x, y, mask_kernel_sizes=None, n_color=16):
+def create_mask(im, x, y, mask_kernel_sizes=None, n_color=11):
     # inputs
     # im = cv2.imread('images/test.jpg')
     # x = 637
@@ -113,6 +113,10 @@ def create_mask(im, x, y, mask_kernel_sizes=None, n_color=16):
     for i in range(num_colors):
         hue_lut[0, hue_scale[i]:hue_scale[i + 1]] = i * (256 // num_colors)
     hue_lut[0, 255] = i * (256 // num_colors)
+
+    print(num_colors)
+    print(hue_scale)
+    print(hue_lut)
 
     # get color from a given coordinate
     selected_rgb = get_rgb(im, x, y)

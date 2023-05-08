@@ -1,5 +1,9 @@
+from matplotlib import pyplot as plt
 import cv2
+import pandas as pd
 import numpy as np
+from sklearn.cluster import KMeans
+
 
 
 def preview(image, desc="test"):
@@ -71,29 +75,154 @@ def rgb_to_hsv(rgb_arr):
     return h/2, s*255, v
 
 
-def increase_brightness(img, value=30):
+def increase_saturation(img, value=30):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
     lim = 255 - value
-    v[v > lim] = 255
-    v[v <= lim] += value
+    s[s > lim] = 255
+    s[s <= lim] += value
     final_hsv = cv2.merge((h, s, v))
     img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
     return img
 
 
-def decrease_saturation(img, value=30):
+def decrease_brightness(img, value=30):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
     lim = value
-    s[s < lim] = 0
-    s[s >= lim] -= value
+    v[v < lim] = 0
+    v[v >= lim] -= value
     final_hsv = cv2.merge((h, s, v))
     img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
     return img
 
 
 # def decrease_saturation(img, value=)
+
+
+
+
+image = cv2.imread('images/new_test.jpg')
+#plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+#plt.axis('off')
+#plt.show()
+
+gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+#plt.imshow(gray, cmap = "gray")
+#plt.axis('off')
+#plt.show()
+
+hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+s_cutoff = 40
+v_cutoff = 50
+#_ , mask = cv2.threshold(gray, cutoff, 255, cv2.THRESH_BINARY)
+_ , mask1 = cv2.threshold(hsv[:,:,1], s_cutoff, 255, cv2.THRESH_BINARY)
+mask1 = cv2.morphologyEx(mask1, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8)))
+_ , mask2 = cv2.threshold(hsv[:,:,2], v_cutoff, 255, cv2.THRESH_BINARY)
+mask2 = cv2.bitwise_not(mask2)
+mask2 = cv2.morphologyEx(mask2, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8)))
+#mask2 = cv2.morphologyEx(mask2, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)))
+#plt.imshow(mask, cmap = "gray")
+#plt.axis('off')
+mask = cv2.add(mask1, mask2)
+mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (12, 12)))
+#mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (12, 12)))
+cv2.imwrite(f'thresholding_{s_cutoff}_{v_cutoff}.png', cv2.hconcat([image, np.stack((mask1, mask1, mask1), axis=2), np.stack((mask2, mask2, mask2), axis=2), np.stack((mask, mask, mask), axis=2)]))
+#cv2.imwrite(f'thresholding_{cutoff}.png', cv2.hconcat([image, np.stack((mask1, mask1, mask1), axis=2)]))
+
+
+
+
+
+contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#
+contours_img_before_filtering = mask.copy()
+contours_img_before_filtering = cv2.cvtColor(contours_img_before_filtering, cv2.COLOR_GRAY2BGR)
+cv2.drawContours(contours_img_before_filtering, contours, -1, (0, 255, 0), 3)
+plt.imshow(contours_img_before_filtering)
+plt.axis('off')
+plt.savefig('contours.png')
+
+
+
+
+filtered_contours = []
+df_mean_color = pd.DataFrame()
+for idx, contour in enumerate(contours):
+    area = int(cv2.contourArea(contour))
+    # if area is higher than 3000:
+    if area > 200:
+        filtered_contours.append(contour)
+        # get mean color of contour:
+        masked = np.zeros_like(image[:, :, 0])  # This mask is used to get the mean color of the specific bead (contour), for kmeans
+        cv2.drawContours(masked, [contour], 0, 255, -1)
+        B_mean, G_mean, R_mean, _ = cv2.mean(image, mask=masked)
+	h,s,v = rgb_to_hsv([R_mean,G_mean,B_mean])
+        df = pd.DataFrame({'B_mean': B_mean, 'G_mean': G_mean, 'R_mean': R_mean, 'H':h,'S':s,'V':v}, index=[idx])
+        df_mean_color = pd.concat([df_mean_color, df])
+
+
+df_mean_color.head()
+
+
+contours_img_after_filtering = mask.copy()
+contours_img_after_filtering = cv2.cvtColor(contours_img_after_filtering, cv2.COLOR_GRAY2BGR)
+cv2.drawContours(contours_img_after_filtering, tuple(filtered_contours), -1, (0, 255, 0), 3)
+plt.imshow(contours_img_after_filtering)
+plt.axis('off')
+cv2.imwrite('contours_filtered.png', cv2.hconcat([image, contours_img_after_filtering]))
+
+
+
+
+
+
+km = KMeans( n_clusters=8)
+df_mean_color['label'] = km.fit_predict(df_mean_color)
+
+background = increase_saturation(image, value=125)
+background = decrease_brightness(background, value=75)
+gray_bg = cv2.cvtColor(background, cv2.COLOR_BGR2GRAY)
+
+def draw_segmented_objects(image, contours, label_cnt_idx, count):
+    mask = np.zeros_like(image[:, :, 0])
+    cv2.drawContours(mask, [contours[i] for i in label_cnt_idx], -1, (255), -1)
+    mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (100, 100)), iterations=1)
+    masked_image = cv2.bitwise_and(image, image, mask=mask)
+    bg = cv2.bitwise_and(gray_bg, gray_bg, mask=cv2.bitwise_not(mask))
+    bg = np.stack((bg,)*3, axis=-1)
+    out = cv2.add(masked_image, bg)
+    out = cv2.putText(out, f'{count} holds', (200, 1200), cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale = 3, color = (255, 255, 255), thickness = 10, lineType = cv2.LINE_AA)
+    return out
+
+
+def draw_segmented_objects2(image, contours, label_cnt_idx, count):
+    mask = np.zeros_like(image[:, :, 0])
+    cv2.drawContours(mask, [contours[i] for i in label_cnt_idx], -1, (255), -1)
+    masked_image = cv2.bitwise_and(image, image, mask=mask)
+    out = cv2.putText(masked_image, f'{count} holds', (200, 1200), cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale = 3, color = (255, 255, 255), thickness = 10, lineType = cv2.LINE_AA)
+    return out
+
+
+
+img = cv2.copyMakeBorder(image.copy(), top=5, bottom=5, left=5, right=5, borderType=cv2.BORDER_CONSTANT, value=[255,255,255])
+for label, df_grouped in df_mean_color.groupby('label'):
+    num_holds = len(df_grouped)
+    masked_image = draw_segmented_objects2(image, contours, df_grouped.index, num_holds)
+    masked_image = cv2.copyMakeBorder(masked_image, top=5, bottom=5, left=5, right=5, borderType=cv2.BORDER_CONSTANT, value=[255,255,255])
+    img = cv2.hconcat([img, masked_image])
+
+
+cv2.imwrite('test_segmentation_masks.png', img)
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
